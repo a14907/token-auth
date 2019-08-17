@@ -101,7 +101,7 @@ local function TableToStr(t)
     return retstr
 end
 
-function TokenAuthHandler:access(config)    
+function TokenAuthHandler:access(config)
     
     --创建redis
     local red = redis:new()
@@ -111,13 +111,13 @@ function TokenAuthHandler:access(config)
     local ok, err = red:connect(config.redis_ip, config.redis_port)
     if not ok then
         kong.log.err("failed to connect to Redis: ", err)
-        return kong.response.exit(400, "failed to connect to Redis: " .. err)
+        return kong.response.exit(401, "failed to connect to Redis ")
     end
     
     local times, err = red:get_reused_times()
     if err then
         kong.log.err("failed to get connect reused times: ", err)
-        return kong.response.exit(400, "failed to get connect reused times " .. err)
+        return kong.response.exit(401, "failed to get connect reused times ")
     end
     
     if times == 0 then
@@ -125,72 +125,25 @@ function TokenAuthHandler:access(config)
             local ok, err = red:auth(config.redis_password)
             if not ok then
                 kong.log.err("failed to auth Redis: ", err)
-                return kong.response.exit(400, "failed to auth Redis: ", err)
+                return kong.response.exit(401, "failed to auth Redis ")
             end
         end
         msg = "have not reuse"
         local ok, err = red:select(config.redis_db)
         if not ok then
             kong.log.err("failed to change Redis database: ", err)
-            return kong.response.exit(400, "failed to change Redis database " .. err)
+            return kong.response.exit(401, "failed to change Redis database ")
         end
     end
     
-    -- local formBody="name=fucck"
-    -- local response_body = {}
-    -- local res, code, response_headers = http.request{
-    --     url = "http://192.168.1.100:5001/identity",
-    --     method = "POST",
-    --     headers = {
-    --         ["Content-Type"] = "application/x-www-form-urlencoded",
-    --         ["Content-Length"] = #formBody
-    --     },
-    --     source =ltn12.source.string(formBody),
-    --     sink = ltn12.sink.table(response_body),
-    -- }
-    -- local res= table.concat(response_body)
-    -- return kong.response.exit(200,cjson.decode(res).name)
-
-    -- --测试redis的功能：?key=xx&val=xx
-    -- local key = kong.request.get_query_arg("key");
-    -- local val = kong.request.get_query_arg("val");
-    -- if type(key) == "string" then
-    --     if type(val) == "string" then
-    --         -- 设置值
-    --         local tval={}
-    --         tval.val=val
-    --         local ok, err = red:set(key, cjson.encode(tval))
-    --         if not ok then
-    --             kong.log.err("failed to set " .. key .. ": " .. val)
-    --             return kong.response.exit(400, "redis set val fail " .. err)
-    --         end
-    --         return kong.response.exit(200, "redis set val success")
-    --     else
-    --         -- 获取值
-    --         local res, err = red:get(key)
-    --         if not res then
-    --             kong.log.err("redis get value：" .. key .. " fail")
-    --             return kong.response.exit(200, "redis get value：" .. key .. " fail")
-    --         end
-    --         if res == ngx.null then
-    --             kong.log.err("redis get value：" .. key .. " fail")
-    --             return kong.response.exit(200, "redis get value：" .. key .. " fail ngx.null")
-    --         end
-    --         local tableval = cjson.decode(res)
-    --         return kong.response.exit(200, "redis " .. key .. ":" .. tableval.val.. "--" )
-    --     end
-    -- end
-    -- return kong.response.exit(400,"not support")
-
     --获取请求头的token
-
     local rawHeader = kong.request.get_header("Authorization")
     if not rawHeader then
         return kong.response.exit(401, "must have Authorization header")
     end
-    local splitHeader = strsplit(rawHeader," ")
+    local splitHeader = strsplit(rawHeader, " ")
     if splitHeader[1] ~= "Bearer" then
-        return kong.response.exit(401, "schema in Authorization header is not right:" .. splitHeader[1])
+        return kong.response.exit(401, "schema in Authorization header is not right")
     end
     if splitHeader[2] == nil or splitHeader[2] == "" then
         return kong.response.exit(401, "Authorization header is empty")
@@ -203,9 +156,9 @@ function TokenAuthHandler:access(config)
     if res then
         if res == "valid" then
             isCacheOk = true
-        else 
-            if res ~= ngx.null and res=="invalid" then
-                return kong.response.exit(401, "token invalid 210 ")
+        else
+            if res ~= ngx.null and res == "invalid" then
+                return kong.response.exit(401, "token invalid ")
             end
         end
     end
@@ -213,41 +166,24 @@ function TokenAuthHandler:access(config)
         -- 请求远程服务判断token的有效性
         local basicHeader = "Basic " .. encodeBase64(config.gatewayapi_name .. ":" .. config.gatewayapi_secret)
         local formBody = "token=" .. splitHeader[2]
-
-
-        -- local response_body = {}
-        -- local res, code, response_headers = http.request{
-        --     url = config.introspect_url,
-        --     method = "POST",
-        --     headers = {
-        --         ["Content-Type"] = "application/x-www-form-urlencoded",
-        --         ["Content-Length"] = #formBody,
-        --         ["Authorization"] = basicHeader,
-        --     },
-        --     source = ltn12.source.string(formBody),
-        --     sink = ltn12.sink.table(response_body),
-        -- }
-        -- if res ~= 1 then
-        --     return kong.response.exit(401, "call introspect_url fail"..config.introspect_url)
-        -- end
-
-
+        
         local httpc = http.new()
         local res, err = httpc:request_uri(config.introspect_url, {
-          method = "POST",
-          body = formBody,
-          headers = {
-            ["Content-Type"] = "application/x-www-form-urlencoded",
-            ["Authorization"] = basicHeader,
-          },
+            method = "POST",
+            body = formBody,
+            headers = {
+                ["Content-Type"] = "application/x-www-form-urlencoded",
+                ["Authorization"] = basicHeader,
+            },
         --   keepalive_timeout = 60,
         --   keepalive_pool = 10
         })
-  
+        
         if not res then
-            return kong.response.exit(401, "call introspect_url fail "..config.introspect_url" err:"..err)
+            kong.log.err("call introspect_url fail " .. config.introspect_url " err:" .. err)
+            return kong.response.exit(401, "call introspect_url fail ")
         end
-  
+        
         local res = cjson.decode(res.body)
         if res.active then
             -- 有效 根据返回回来的过期时间计算需要缓存的时间进行缓存，判断nbf字段，只有在nbf之后才算生效，在exp之前
@@ -274,15 +210,15 @@ function TokenAuthHandler:access(config)
             local ok, err = red:set(cachekey, "invalid")
             if not ok then
                 kong.log.err("failed to set " .. cachekey .. ": " .. "invalid")
-                return kong.response.exit(401, "token invalid"..261)
+                return kong.response.exit(401, "token invalid")
             end
             local ok, err = red:expire(cachekey, 60)
             if not ok then
                 kong.log.err("failed to expire " .. cachekey .. ": 60s")
-                return kong.response.exit(401, "token invalid"..266)
+                return kong.response.exit(401, "token invalid")
             end
-            kong.log.err("token invalid "..basicHeader)
-            return kong.response.exit(401, "token invalid"..269)
+            kong.log.err("token invalid " .. basicHeader)
+            return kong.response.exit(401, "token invalid")
         end
     end
 end
