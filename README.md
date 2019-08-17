@@ -4,15 +4,18 @@
 
 # 环境变量
 
-`-e "KONG_LUA_PACKAGE_PATH=/custom/?.lua;;" 
+```
+-e "KONG_LUA_PACKAGE_PATH=/custom/?.lua;;" 
 
 -e "KONG_PLUGINS=bundled,token-auth" 
 
--v "F:/code/001_lua/kong_plugins:/custom/kong/plugins"`
+-v "/code/001_lua/kong_plugins:/custom/kong/plugins"
+```
 
 # 插件配置项
 
-`"redis_ip": "192.168.1.100",
+```
+"redis_ip": "192.168.1.100",
 
 "redis_db": "0",
 
@@ -24,5 +27,6 @@
 
 "gatewayapi_name": "gateway",
 
-"gatewayapi_secret": "123456"`
+"gatewayapi_secret": "123456"
+```
 
