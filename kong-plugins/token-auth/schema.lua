@@ -28,7 +28,7 @@ return {
                         redis_ip = {
                             type = "string",
                             required = true,
-                            default="192.168.1.100"
+                            default="192.168.2.148"
                         },
                     },
                     {
@@ -42,7 +42,7 @@ return {
                         redis_db = {
                             type = "string",
                             required = true,
-                            default="0"
+                            default="2"
                         },
                     },
                     {
@@ -56,7 +56,7 @@ return {
                         introspect_url = {
                             type = "string",
                             required = true,
-                            default="http://localhost:5000/connect/introspect"
+                            default="http://openplatformauthcenter.service.consul:8006/connect/introspect"
                         },
                     },
                     {
